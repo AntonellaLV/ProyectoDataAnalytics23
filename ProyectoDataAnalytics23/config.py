@@ -1,5 +1,3 @@
-
-
 # API key de OpenWeatherMap
 API_KEY = "0826c4779496abe5470b904311fa3097" #"cc3d07bf7909e147cd7443c0415b0f76" = API Demo
 # URL base de la API de OpenWeatherMap

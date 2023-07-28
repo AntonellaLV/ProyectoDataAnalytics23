@@ -5,6 +5,7 @@ import pandas as pd
 from config import BASE_URL, API_KEY, UNITS, FOLDER, FILENAME, cityList, coordList
 from alive_progress import alive_bar
 
+
 # Obtener el tiempo actual en formato Unix
 ts = int(datetime.now().timestamp())
 
@@ -37,15 +38,43 @@ def request_data(city: str = None, coord: dict = None):
         print(f"Error en el formato de respuesta de la API: {e}")
     except Exception as e:
         print(f"Error desconocido: {e}")
+    return None
 
-       
-    """ Nivel Inicial:
+def create_weather_table(conn):
+    # Código para crear la tabla 'weather_data' en PostgreSQL
+        cursor = conn.cursor()
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS weather_data (
+            id SERIAL PRIMARY KEY,
+            city VARCHAR(100) NOT NULL,
+            date TIMESTAMP NOT NULL,
+            temperature FLOAT NOT NULL,
+            humidity INTEGER NOT NULL,
+            weather_description VARCHAR(100) NOT NULL
+        )
+    """)
+        conn.commit()
+        cursor.close()
+
+
+def insert_weather_data(conn, data):
+    # Código para insertar los datos en la tabla 'weather_data'
+    cursor = conn.cursor()
+    for item in data:
+        cursor.execute("""
+            INSERT INTO weather_data (city, date, temperature, humidity, weather_description)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (item['city'], item['date'], item['temperature'], item['humidity'], item['weather_description']))
+    conn.commit()
+    cursor.close()
+ 
+""" Nivel Inicial:
     Recibe "city" que es el nombre de la ciudad, en formato string
     Hace una solicitud a la api y si el código de respuesta
     Es 200, devuelve la data en formato json
     De lo contrario, intentará manejar las excepciones
     """
-    """ Nivel Medio:
+""" Nivel Medio:
     Realiza una solicitud a la API de OpenWeatherMap para obtener los datos climáticos de una ciudad o coordenadas.
 
     Args:
@@ -61,10 +90,8 @@ def request_data(city: str = None, coord: dict = None):
     Raises:
         requests.exceptions.RequestException: Si ocurre un error durante la solicitud a la API.
         KeyError: Si hay un error en el formato de respuesta de la API.
-        Exception: Si ocurre un error desconocido.
-    """
-
-    """try:
+        Exception: Si ocurre un error desconocido.""" 
+"""try:
         if city:
             params = {"q": city, "units": UNITS, "appid": API_KEY}
 
@@ -85,32 +112,10 @@ def request_data(city: str = None, coord: dict = None):
     except Exception as e:
         print(f"Error desconocido: {e}")"""
 
-
 def export_to_json(data: list, filename: str):
     """Exportar datos a un archivo JSON."""
     with open(filename, "w") as file:
         json.dump(data, file)
-
-
-def save_to_file(data, filename):
-    with open(filename, "w") as file:
-        file.write(data)
-        file.close()
-
-
-def formatted_date_time():
-    return datetime.now().strftime("%Y%m%d")
-
-def format_datetime(unix_timestamp):
-
-    # Convertir el tiempo Unix a una fecha y hora en UTC
-    utc_datetime = datetime.utcfromtimestamp(unix_timestamp)
-
-    gmt3_offset = timedelta(hours=-3)
-    argentina_datetime = utc_datetime + gmt3_offset
-    
-    return argentina_datetime
-
 
 def export_to_csv(data_list, filename):
     dfs = []
@@ -134,8 +139,25 @@ def export_to_csv(data_list, filename):
     else:
         print("No hay datos válidos para exportar a CSV.")
 
+def formatted_date_time():
+    return datetime.now().strftime("%Y%m%d")
 
-def get_cities_weather_data():
+def format_datetime(unix_timestamp):
+
+    # Convertir el tiempo Unix a una fecha y hora en UTC
+    utc_datetime = datetime.utcfromtimestamp(unix_timestamp)
+
+    gmt3_offset = timedelta(hours=-3)
+    argentina_datetime = utc_datetime + gmt3_offset
+    
+    return argentina_datetime
+
+'''def save_to_file(data, filename):
+    with open(filename, "w") as file:
+        file.write(data)
+        file.close()'''
+
+'''def get_cities_weather_data():
     """
     Obtener los datos del clima
     A partir de la lista de ciudades
@@ -182,8 +204,57 @@ def get_cities_weather_data():
 
     export_to_csv(cities_data, weather_data_filename)
     print(f"Los datos del tiempo se guardaron en {weather_data_filename}")
-    return cities_data
+    return cities_data'''
 
+
+def get_cities_weather_data():
+
+    """
+    Obtener los datos del clima para todas las ciudades en cityList y coordList.
+    Devuelve una lista con los datos climáticos de todas las ciudades.
+    """
+
+    cities_data = []
+    unreached_cities = []
+
+    with alive_bar(len(cityList) + len(coordList), title='Processing', length=20, bar='bubbles') as bar:
+        for city in cityList:
+            bar()
+            city_data = request_data(city=city)
+            if city_data:
+                # Obtener la fecha actual en formato Unix para el día actual
+                ts = int(datetime.now().timestamp())
+
+                # Solicitar datos históricos del clima de 5 días para cada ciudad
+                for day in range(5):
+                    # Calcular el timestamp para el día actual menos el número de días (day) en segundos
+                    ts_day = ts - (day * 86400)
+                    url = f"{BASE_URL}?lat={city_data['coord']['lat']}&lon={city_data['coord']['lon']}&dt={ts_day}&appid={API_KEY}&units={UNITS}"
+                    response = requests.get(url).json()
+                    if 'hourly' in response:
+                        for hourly_data in response['hourly']:
+                            data = {
+                                'city': city_data['name'],
+                                'date': datetime.utcfromtimestamp(hourly_data['dt']).strftime('%Y-%m-%d %H:%M:%S'),
+                                'temperature': hourly_data['temp'],
+                                'humidity': hourly_data['humidity'],
+                                'weather_description': hourly_data['weather'][0]['description']
+                            }
+                            cities_data.append(data)
+                    else:
+                        unreached_cities.append(city)
+
+    print("_" * 50)
+
+    unreached_cities_filename = f"{FOLDER}/no_alcanzadas_{formatted_date_time()}.lst"
+    weather_data_filename = f"{FILENAME}_{formatted_date_time()}.csv"
+
+    export_to_json(unreached_cities, unreached_cities_filename)
+    print(f"Se guardó la lista de ciudades no alcanzadas en {unreached_cities_filename}")
+
+    export_to_csv(cities_data, weather_data_filename)
+    print(f"Los datos del tiempo se guardaron en {weather_data_filename}")
+    return cities_data
 
 '''def get_cities_weather_data():
     """
