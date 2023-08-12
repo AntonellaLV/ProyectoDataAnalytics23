@@ -1,7 +1,7 @@
 # API key de OpenWeatherMap
-API_KEY = "0826c4779496abe5470b904311fa3097" #"cc3d07bf7909e147cd7443c0415b0f76" = API Demo
+API_KEY = #"cc3d07bf7909e147cd7443c0415b0f59" = API Demo
 # URL base de la API de OpenWeatherMap
-BASE_URL = "https://api.openweathermap.org/data/2.5/weather?" # "https://api.openweathermap.org/data/2.5/onecall/timemachine?" NO FUNCIONA # nivel medio Base de Datos.
+BASE_URL = "https://api.openweathermap.org/data/2.5/weather?" # "https://api.openweathermap.org/data/2.5/onecall/timemachine?"
 # BASE_URL = "https://api.openweathermap.org/data/2.5/weather" nivel inicial Base de Datos.
 # Unidades para obtener los datos meteorológicos (por ejemplo, "metric" para Celsius)
 UNITS = "metric"
