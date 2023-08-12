@@ -5,7 +5,7 @@ import pandas as pd
 
 
 # Cadena de conexión a la base de datos PostgreSQL
-DATABASE_URL = "postgresql://postgres:admin@localhost:5432/ProyectoData23"  # Reemplaza username, password, dbname con tus propias credenciales y nombre de la base de datos
+DATABASE_URL = "postgresql://username:password@localhost:5432/dbname"  # Reemplaza username, password, dbname con tus propias credenciales y nombre de la base de datos
 
 # Crear el motor de la base de datos
 engine = create_engine(DATABASE_URL)
